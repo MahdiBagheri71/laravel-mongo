@@ -1,0 +1,110 @@
+version: '3'
+
+networks:
+  mongo:
+    driver: bridge
+
+volumes:
+  db_data_mongo:
+
+services:
+  mysql_mongo:
+    image: mysql:latest
+    container_name: mysql_mongo
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 512M
+        reservations:
+          cpus: '0.50'
+          memory: 128M
+    volumes:
+      - db_data_mongo:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: ${DB_CONNECTION}
+    networks:
+      - mongo
+
+  redis_mongo:
+    image: 'redis:alpine'
+    container_name: redis_mongo
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "6379"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.50'
+          memory: 128M
+    volumes:
+      - db_data_mongo:/data
+    networks:
+      - mongo
+
+  app_mongo:
+    build:
+      context: ../
+      dockerfile: docker/app/Dockerfile
+    container_name: app_mongo
+    restart: unless-stopped
+    volumes:
+      - ../:/var/www/html
+      - ./app/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+    ports:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.50'
+          memory: 128M
+    depends_on:
+      - mysql_mongo
+      - redis_mongo
+    external_links:
+      - mysql_mongo
+      - redis_mongo
+    networks:
+      - mongo
+
+  schedule_mongo:
+    build:
+      context: ../
+      dockerfile: docker/schedule/Dockerfile
+    container_name: schedule_mongo
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.50'
+          memory: 128M
+    depends_on:
+      - mysql_mongo
+      - redis_mongo
+    external_links:
+      - mysql_mongo
+      - redis_mongo
+    volumes:
+      - ../:/var/www/html
+      - ./schedule/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+    networks:
+      - mongo
