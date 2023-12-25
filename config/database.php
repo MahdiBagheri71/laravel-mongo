@@ -102,8 +102,8 @@ return [
             'database' => env('MONGO_DB_DATABASE'),
             'username' => env('MONGO_DB_USERNAME'),
             'password' => env('MONGO_DB_PASSWORD'),
-            'options' => [
-                'appname' => 'homestead',
+            'options'  => [
+                'database' => env('MONGO_DB_DATABASE'), // the default database required for authentication
             ],
         ],
 
